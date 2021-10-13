@@ -20,8 +20,10 @@
 ### 2.1 分类器模型
 
 感知机模型本质上就是将**输入向量$\bold x=(x_1,x_2,...,x_d)^T$与一组权重系数$\bold w=(w_1,w_2,...,w_d)$做内积，加上偏置$b$，判断其正负**。数学表示为：
-<img src="http://latex.codecogs.com/gif.latex?\hat y=sgn(\sum^d_{i=1}w_ix_i+b)\\ \hat y=sgn(\bold W_d\bold x_d+b)" />
-
+$$
+hat y=sgn(\sum^d_{i=1}w_ix_i+b)\\ 
+\hat y=sgn(\bold W_d\bold x_d+b
+$$
 默认$y=1$表示分类为正，$y=-1$表示分类为负。此时可将$W$和$X$做**增广化**，将常数项并入向量乘法中，使表达式更简洁：
 $$
 \bold W_{d+1}=(1,w_i,w_2,...,w_d)\\
