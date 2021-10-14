@@ -133,11 +133,13 @@ class DualSVM(SVM):
         v = matrix(v)
 
         alpha = np.array(qp(Q, p, A, c, R, v)['x']) ## (n, 1)
-        idx = np.where(alpha>1e-8)[0][0]
+        idx = np.where(alpha>1e-8)[0]
 
         self.w = np.sum(alpha * y * z, axis=0).reshape(dimension, 1)
-        self.b = y[idx] - np.matmul(z[idx], self.w)
-        self.support_vector = np.where(alpha>1e-8)[0]
+        self.b = y[idx[0]] - np.matmul(z[idx[0]], self.w)
+
+        self.support_vector = z[idx]
+        self.support_vector_y = y[idx]
 
     def eval(self, x, y):
         n, dimension = x.shape
@@ -150,9 +152,112 @@ class DualSVM(SVM):
 
         print('accuracy %.2f'%(correct/n))
 
-class Kernel_SVM(SVM):
-    def __init__(self, dimension=2):
-        self.dimension = dimension
+class KernelSVM(SVM):
+    def __init__(self, nonlinear=2, zeta=1, gamma=1, gauss=False):
+        '''
+        Args: dimension: dim before non-linear transform
+              nonlinear: nonlinear transform order
+              gauss: use gauss kernel (infinity order transform)
+        '''
+        self.nonlinear = nonlinear
+        self.zeta = zeta
+        self.gamma = gamma
+        self.gauss = gauss
+
+    def quadratic_programming(self, x, y):
+        ##  
+        ## NOTE: input of dual-svm is features after non-linear transfrom
+        ##       input of kernel is orgin features
+        ##
+        n, dimension = x.shape
+
+        ## guass kernel
+        if self.gauss:
+            kernel = self._caculate_gauss_kernel(x, x)
+
+        ## polyomial kernel
+        else:
+            kernel = self._caculate_kernel(x, x)
+
+        Q = np.matmul(y,y.T) * kernel
+        p = -1 * np.ones((n,1))
+        A = -1 * np.eye(n)
+        c = np.zeros((n,1))
+        R = y.T
+        v = np.zeros((1,1))
+
+        Q = matrix(Q)
+        p = matrix(p)
+        A = matrix(A)
+        c = matrix(c)
+        R = matrix(R)
+        v = matrix(v)
+
+        alpha = np.array(qp(Q, p, A, c, R, v)['x']) ## (n, 1)
+
+        ## only get support vector index 
+        idx = np.where(alpha>1e-6)[0] ## ToDo: adaptive epsilon than manual-choose
+        self.alpha = alpha[idx]
+        self.sv = x[idx]
+        self.sv_y = y[idx]
+
+        x_query, y_query = self.sv[0].reshape(1,-1), self.sv_y[0]
+
+        if self.gauss:
+            kernel_value = self._caculate_gauss_kernel(x_query, self.sv)
+
+        else:
+            kernel_value = self._caculate_kernel(x_query, self.sv)
+
+        self.b = y_query - np.sum(self.alpha * self.sv_y * kernel_value)
+
+    def __call__(self, x):
+        n, dimension = x.shape
+
+        if self.gauss:
+            kernel_value = self._caculate_gauss_kernel(x, self.sv)
+        else:
+            kernel_value = self._caculate_kernel(x, self.sv)
+
+        yhat = np.sum(self.alpha * self.sv_y * kernel_value, axis=0) + self.b
+        yhat = np.sign(yhat).reshape(n,1)
+
+        return yhat
+
+
+    def eval(self, x, y):
+        n, dimension = x.shape
+
+        if self.gauss:
+            kernel_value = self._caculate_gauss_kernel(x, self.sv)
+        else:
+            kernel_value = self._caculate_kernel(x, self.sv)
+        yhat = np.sum(self.alpha * self.sv_y * kernel_value, axis=0) + self.b
+        yhat = np.sign(yhat).reshape(n,1)
+        correct = len(np.where(yhat == y)[0])
+
+        print('accuracy %.2f'%(correct/n))
+
+    def _caculate_kernel(self, x, sv_x):
+        n, dimension1 = sv_x.shape
+        m, dimension2 = x.shape
+        assert(dimension1 == dimension2)
+
+        kernel_value = np.power(self.zeta + self.gamma * np.matmul(sv_x, x.T), self.nonlinear)
+
+        return kernel_value.reshape(n,m)
+
+    def _caculate_gauss_kernel(self, x, sv_x):
+        n, dimension1 = sv_x.shape
+        m, dimension2 = x.shape
+        assert(dimension1 == dimension2)
+        graph1 = np.repeat(np.expand_dims(x, axis=0), n, axis=0)
+        graph2 = np.repeat(np.expand_dims(sv_x, axis=0), m, axis=0).transpose(1,0,2)
+
+
+        kernel_value = np.exp(-self.gamma * np.linalg.norm(graph1 - graph2, axis=-1))
+
+        return kernel_value
 
 if __name__=='__main__':
 
