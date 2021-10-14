@@ -14,9 +14,7 @@
 
 ##### 4. [Fisher线性判别(Fisher)](./Fisher)
 
-##### 5. 支持向量机(SVM)
-
---未完成
+##### 5. [支持向量机(SVM)](./SVM)
 
 ##### 6. [多分类模型(Multiclassification)](./Multiclass%20Classification)
 
